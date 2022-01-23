@@ -281,7 +281,7 @@ _NONE_PAIR = type('NonePair', (tuple,), {
 })((None, None))
 
 
-class Trie(_collections.MutableMapping):
+class Trie(_collections.abc.MutableMapping):
     """A trie implementation with dict interface plus some extensions.
 
     Keys used with the :class:`pygtrie.Trie` must be iterable, yielding hashable
@@ -1247,7 +1247,7 @@ class StringTrie(Trie):
         return self._separator.join(path)
 
 
-class PrefixSet(_collections.MutableSet):  # pylint: disable=abstract-class-not-used
+class PrefixSet(_collections.abc.MutableSet):  # pylint: disable=abstract-class-not-used
     """A set of prefixes.
 
     :class:`pygtrie.PrefixSet` works similar to a normal set except it is said

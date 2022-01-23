@@ -1,0 +1,2 @@
+
+WORDLE_LENGTH = 5
