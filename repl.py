@@ -1,6 +1,6 @@
 
 from enum import Enum
-from typing import Tuple
+from typing import Callable, Tuple
 
 from const import WORDLE_LENGTH
 from game import Game
@@ -13,11 +13,19 @@ class CommandResult(Enum):
     HELP = 1
     EXIT = 2
     NOOP = 3
+    RESET = 4
 
 class Repl:
-    def __init__(self, game: Game):
-        self.game = game
+    def __init__(self, game_factory: Callable[[], Game]):
+        self.game_factory = game_factory
         self.guess: str = None
+        self._game: Game = None
+
+    @property
+    def game(self):
+        if self._game is None:
+            self._game = self.game_factory()
+        return self._game
 
     def repl(self):
         loop = True
@@ -35,7 +43,11 @@ class Repl:
                 print('    override the recommended guess with the given wordle')
                 print('  candidates')
                 print('    print out the best candidates')
+                print('  reset')
                 print('  exit')
+            elif result == CommandResult.RESET:
+                self._game = None
+                self.update_and_display_recommended_guess()
             elif result == CommandResult.EXIT:
                 loop = False
 
@@ -68,6 +80,8 @@ class Repl:
                 for pair in worst_slice:
                     print(pair[0], pair[1])
             return CommandResult.SUCCESS
+        elif tokens[0].lower() == 'reset':
+            return CommandResult.RESET
         elif tokens[0].lower() == 'exit':
             return CommandResult.EXIT
         else:

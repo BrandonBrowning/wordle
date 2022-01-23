@@ -5,8 +5,9 @@ import csv
 import re
 
 from const import WORDLE_LENGTH
-from repl import Repl
 from game import Game
+from pygtrie import StringTrie
+from repl import Repl
 
 DEBUG = True
 
@@ -34,9 +35,19 @@ def fetch_wordles_from_google_corpus_by_count(min_count):
         pairs.sort(key=lambda pair: -pair[1])
         return [pair[0] for pair in pairs]
 
+def wordles_to_substr_frequencies(wordles):
+    trie = StringTrie()
+    for wordle in wordles:
+        for start_i in range(WORDLE_LENGTH - 1):
+            for end_i in range(start_i + 1, WORDLE_LENGTH + 1):
+                key = wordle[start_i:end_i]
+                trie[key] = trie.setdefault(key, 0) + 1
+    return {k: v for k, v in trie.iteritems()}
+
 if __name__ == '__main__':
     wordles = fetch_wordles_from_google_corpus_by_count(GOOGLE_CORPUS_MIN_COUNT)
-    Repl(Game(wordles)).repl()
+    substr_to_freq = wordles_to_substr_frequencies(wordles)
+    Repl(lambda: Game(wordles, substr_to_freq)).repl()
     if DEBUG:
         breakpoint()
         input('Press your any key to continue')

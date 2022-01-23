@@ -4,26 +4,16 @@ from typing import Dict, Set
 from util import max_by
 
 from const import WORDLE_LENGTH
-from pygtrie import StringTrie
-
-def wordles_to_substr_frequencies(wordles):
-    trie = StringTrie()
-    for wordle in wordles:
-        for start_i in range(WORDLE_LENGTH - 1):
-            for end_i in range(start_i + 1, WORDLE_LENGTH + 1):
-                key = wordle[start_i:end_i]
-                trie[key] = trie.setdefault(key, 0) + 1
-    return {k: v for k, v in trie.iteritems()}
 
 class Game:
-    def __init__(self, wordles):
+    def __init__(self, wordles, substr_to_freq):
         self._candidates = copy.copy(wordles)
         self._candidates_dirty = False
         
         self.confirmed = [None for _ in range(WORDLE_LENGTH)]
         self.eliminated: Set[str] = set()
         self.somewhere_else: Dict[int, Set[str]] = {}
-        self.substr_to_freq = wordles_to_substr_frequencies(wordles)
+        self.substr_to_freq = substr_to_freq
 
     def apply(self, guess, result):
         for i in range(WORDLE_LENGTH):
