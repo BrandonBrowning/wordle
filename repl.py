@@ -41,11 +41,17 @@ commands:
     override the recommended guess with the given wordle
   candidates
     print out the best candidates
-  reset
+  reset | restart
+    begin a new game
+  denied
+    remove best guess as a valid word and try again
+  debug
+    trigger a breakpoint
   exit
 """.strip())
             elif result == CommandResult.RESET:
                 self._game = None
+                print()
                 self.update_and_display_recommended_guess()
             elif result == CommandResult.EXIT:
                 loop = False
@@ -59,15 +65,17 @@ commands:
             tokens = [line] if line else []
         if not tokens or len(tokens) == 0:
             return CommandResult.HELP
-        if tokens[0].lower() == 'result' and len(tokens) == 2:
-            success = self.game.apply_colors(self.guess, tokens[1])
+        command = tokens[0].lower()
+        if command == 'result' and len(tokens) == 2:
+            result = tokens[1]
+            result += ' ' * (WORDLE_LENGTH - len(result)) # space pad
+            success = self.game.apply_colors(self.guess, result)
             if success:
-                self.update_and_display_recommended_guess()
-                return CommandResult.SUCCESS
+                return self.update_and_display_recommended_guess()
             else:
                 print('error: invalid format')
                 return CommandResult.NOOP
-        elif tokens[0].lower() == 'guess' and len(tokens) == 2:
+        elif command == 'guess' and len(tokens) == 2:
             wordle = tokens[1].lower()
             if len(wordle) == WORDLE_LENGTH:
                 self.guess = wordle
@@ -75,25 +83,40 @@ commands:
             else:
                 print('error: wordle length must be', WORDLE_LENGTH)
                 return CommandResult.NOOP
-        elif tokens[0].lower() == 'candidates' and len(tokens) == 1:
-            best_candidates = self.game.best_candidates()
-            best_slice = best_candidates[:PRINT_N_BEST_CANDIDATES]
-            print('best candidates:')
-            for pair in best_slice:
-                print(pair[0], pair[1])
-            worst_slice = best_candidates[len(best_candidates) - PRINT_N_WORST_CANDIDATES:]
-            if worst_slice != best_slice:
-                print('worst candidates:')
-                for pair in worst_slice:
-                    print(pair[0], pair[1])
-            return CommandResult.SUCCESS
-        elif tokens[0].lower() == 'reset':
+        elif command == 'candidates' and len(tokens) == 1:
+            return self.repl_command_candidates()
+        elif command in ['reset', 'restart', 'retry', 'begin']:
             return CommandResult.RESET
-        elif tokens[0].lower() == 'exit':
+        elif command == 'denied':
+            self.game.remove_candidate(self.guess)
+            self.repl_command_candidates()
+            return self.update_and_display_recommended_guess()
+        elif command == 'debug':
+            breakpoint()
+            return CommandResult.NOOP
+        elif command == 'exit':
             return CommandResult.EXIT
         else:
             return CommandResult.HELP
 
+    def repl_command_candidates(self):
+        best_candidates = self.game.best_candidates()
+        best_slice = best_candidates[:PRINT_N_BEST_CANDIDATES]
+        print('best candidates:')
+        for pair in best_slice:
+            print('', pair[0], pair[1])
+        worst_slice = best_candidates[len(best_candidates) - PRINT_N_WORST_CANDIDATES:]
+        if worst_slice != best_slice:
+            print('worst candidates:')
+            for pair in worst_slice:
+                print('', pair[0], pair[1])
+        return CommandResult.SUCCESS
+
     def update_and_display_recommended_guess(self):
         self.guess = self.game.best_candidate()
-        print('recommended guess is', self.guess)
+        if self.guess:
+            print('recommended guess is', self.guess)
+            return CommandResult.SUCCESS
+        else:
+            print('error: no wordles left; resetting')
+            return CommandResult.RESET

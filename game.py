@@ -42,7 +42,10 @@ class Game:
         return True
 
     def best_candidate(self):
-        return max_by(self.candidates, self._score)
+        if len(self.candidates) == 0:
+            return None
+        else:
+            return max_by(self.candidates, self._score)
 
     def best_candidates(self):
         pairs = [(wordle, self._score(wordle)) for wordle in self.candidates]
@@ -68,6 +71,10 @@ class Game:
         self.eliminated.add(letter.lower())
         self._candidates_dirty = True
 
+    def remove_candidate(self, wordle):
+        self._candidates.remove(wordle)
+        self._candidates_dirty = True
+
     def somewhere(self, letter, i):
         self.somewhere_else.setdefault(i, set()).add(letter.lower())
         self._candidates_dirty = True
@@ -83,9 +90,9 @@ class Game:
                 candidate_regex += self.confirmed[i]
             else:
                 excluded = set(self.eliminated)
-                for c in self.confirmed:
-                    if c is not None:
-                        excluded.add(c)
+                # for c in self.confirmed:
+                #     if c is not None:
+                #         excluded.add(c)
                 for j, letters in self.somewhere_else.items():
                     if i == j:
                         for letter in letters:

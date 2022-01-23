@@ -1,5 +1,6 @@
 
 # TODO: deal with duplicate letters, confirmed vs in word
+# TODO: detect final guess and re-incorperate google word frequency for most likely
 
 import csv
 import re
@@ -9,27 +10,20 @@ from game import Game
 from pygtrie import StringTrie
 from repl import Repl
 
-DEBUG = True
-
-GOOGLE_CORPUS_MIN_COUNT = 100_000
-WORD_FREQUENCIES_PATH = 'frequency-alpha-gcide.txt'
-WORDS_PATH = 'words.csv'
-
 WORDLE_RE = re.compile(f"^[a-z]{{{WORDLE_LENGTH}}}$")
+WORDLES_PATH = 'data/wordles.csv'
 
-def fetch_wordles_from_etc_words():
-    with open(WORDS_PATH, encoding='utf-8') as f:
+def fetch_wordles_from_csv(path):
+    with open(path, encoding='utf-8') as f:
         return set(line[0].lower() for line in csv.reader(f) if WORDLE_RE.match(line[0]))
 
-def fetch_wordles_from_google_corpus_by_count(min_count):
-    with open(WORD_FREQUENCIES_PATH, encoding='utf-8') as f:
+def fetch_wordles_from_csv_with_minimum_count(path, min_count):
+    with open(path, encoding='utf-8') as f:
         pairs = list()
-        iterator = iter(f)
-        next(iterator) # skip header
-        for line in iterator:
-            word = line[11:35].strip().lower()
+        for line in csv.reader(f):
+            word = line[0].strip().lower()
             if WORDLE_RE.match(word):
-                count = int(line[35:51].strip().replace(',', ''))
+                count = int(line[1].strip().replace(',', ''))
                 if count >= min_count:
                     pairs.append([word, count])
         pairs.sort(key=lambda pair: -pair[1])
@@ -45,9 +39,6 @@ def wordles_to_substr_frequencies(wordles):
     return {k: v for k, v in trie.iteritems()}
 
 if __name__ == '__main__':
-    wordles = fetch_wordles_from_google_corpus_by_count(GOOGLE_CORPUS_MIN_COUNT)
+    wordles = fetch_wordles_from_csv(WORDLES_PATH)
     substr_to_freq = wordles_to_substr_frequencies(wordles)
     Repl(lambda: Game(wordles, substr_to_freq)).repl()
-    if DEBUG:
-        breakpoint()
-        input('Press your any key to continue')
