@@ -39,11 +39,11 @@ commands:
     apply the result of the recommended guess (green, yellow, and missing)
   guess wordl
     override the recommended guess with the given wordle
-  candidates
+  candidates | wordles
     print out the best candidates
   reset | restart
     begin a new game
-  denied
+  denied | invalid
     remove best guess as a valid word and try again
   debug
     trigger a breakpoint
@@ -83,11 +83,11 @@ commands:
             else:
                 print('error: wordle length must be', WORDLE_LENGTH)
                 return CommandResult.NOOP
-        elif command == 'candidates' and len(tokens) == 1:
+        elif command in ['candidates', 'wordles'] and len(tokens) == 1:
             return self.repl_command_candidates()
         elif command in ['reset', 'restart', 'retry', 'begin']:
             return CommandResult.RESET
-        elif command == 'denied':
+        elif command in ['denied', 'invalid']:
             self.game.remove_candidate(self.guess)
             self.repl_command_candidates()
             return self.update_and_display_recommended_guess()
@@ -115,7 +115,11 @@ commands:
     def update_and_display_recommended_guess(self):
         self.guess = self.game.best_candidate()
         if self.guess:
-            print('recommended guess is', self.guess)
+            n = len(self.game.candidates)
+            if n == 1:
+                print(self.guess, 'is the only remaining wordle')
+            else:
+                print(self.guess, 'is the recommended guess of', n, 'wordles')
             return CommandResult.SUCCESS
         else:
             print('error: no wordles left; resetting')
