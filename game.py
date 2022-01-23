@@ -1,9 +1,9 @@
 import copy
 import re
 from typing import Dict, Set
-from util import max_by
 
 from const import WORDLE_LENGTH
+from util import max_by
 
 class Game:
     def __init__(self, wordles, substr_to_freq):
@@ -15,7 +15,7 @@ class Game:
         self.somewhere_else: Dict[int, Set[str]] = {}
         self.substr_to_freq = substr_to_freq
 
-    def apply(self, guess, result):
+    def apply_caps(self, guess, result):
         for i in range(WORDLE_LENGTH):
             g = guess[i].lower()
             r = result[i]
@@ -26,6 +26,20 @@ class Game:
             else:
                 self.eliminate(g)
         return self.best_candidate()
+
+    def apply_colors(self, guess, result) -> bool:
+        for i in range(WORDLE_LENGTH):
+            g = guess[i].lower()
+            r = result[i]
+            if r.lower() == 'g':
+                self.confirm(g, i)
+            elif r.lower() == 'y':
+                self.somewhere(g, i)
+            elif r.lower() == 'b' or r == '_' or r == ' ':
+                self.eliminate(g)
+            else:
+                return False
+        return True
 
     def best_candidate(self):
         return max_by(self.candidates, self._score)

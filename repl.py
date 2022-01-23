@@ -33,18 +33,17 @@ class Repl:
         while loop:
             result = self.repl_command()
             if result == CommandResult.HELP:
-                print('commands:')
-                print('  result WOr_s')
-                print('    apply the result of the recommended guess')
-                print('    upper case = green')
-                print('    lower case = yellow')
-                print('    otherwise  = gray')
-                print('  guess wordl')
-                print('    override the recommended guess with the given wordle')
-                print('  candidates')
-                print('    print out the best candidates')
-                print('  reset')
-                print('  exit')
+                print("""
+commands:
+  result _g_y_
+    apply the result of the recommended guess (green, yellow, and missing)
+  guess wordl
+    override the recommended guess with the given wordle
+  candidates
+    print out the best candidates
+  reset
+  exit
+""".strip())
             elif result == CommandResult.RESET:
                 self._game = None
                 self.update_and_display_recommended_guess()
@@ -53,13 +52,21 @@ class Repl:
 
     def repl_command(self) -> Tuple[bool, bool]:
         line = input('> ').strip()
-        tokens = line.split(' ')
+        try:
+            index = line.index(' ')
+            tokens = [line[0:index], line[index+1:]]
+        except ValueError:
+            tokens = [line] if line else []
         if not tokens or len(tokens) == 0:
             return CommandResult.HELP
         if tokens[0].lower() == 'result' and len(tokens) == 2:
-            self.game.apply(self.guess, tokens[1])
-            self.update_and_display_recommended_guess()
-            return CommandResult.SUCCESS
+            success = self.game.apply_colors(self.guess, tokens[1])
+            if success:
+                self.update_and_display_recommended_guess()
+                return CommandResult.SUCCESS
+            else:
+                print('error: invalid format')
+                return CommandResult.NOOP
         elif tokens[0].lower() == 'guess' and len(tokens) == 2:
             wordle = tokens[1].lower()
             if len(wordle) == WORDLE_LENGTH:
