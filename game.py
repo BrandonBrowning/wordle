@@ -1,19 +1,22 @@
 import copy
 import re
+import sys
 from typing import Dict, Set
 
 from const import WORDLE_LENGTH
 from util import max_by
 
 class Game:
-    def __init__(self, wordles, substr_to_freq):
+    def __init__(self, wordles, substr_to_freq, wordle_to_usage=None, debug=False):
         self._candidates = copy.copy(wordles)
         self._candidates_dirty = False
         
         self.confirmed = [None for _ in range(WORDLE_LENGTH)]
+        self.debug = debug
         self.eliminated: Set[str] = set()
         self.somewhere_else: Dict[int, Set[str]] = {}
-        self.substr_to_freq = substr_to_freq
+        self.substr_to_freq: Dict[str, int] = substr_to_freq
+        self.wordle_to_usage: Dict[str, int] = wordle_to_usage or {}
 
     def apply_caps(self, guess, result):
         for i in range(WORDLE_LENGTH):
@@ -49,6 +52,11 @@ class Game:
 
     def best_candidates(self):
         pairs = [(wordle, self._score(wordle)) for wordle in self.candidates]
+        pairs.sort(key=lambda pair: -pair[1])
+        return pairs
+
+    def best_candidates_to_finish(self):
+        pairs = [(wordle, self.wordle_to_usage.get(wordle, -sys.maxsize + self._score(wordle))) for wordle in self.candidates]
         pairs.sort(key=lambda pair: -pair[1])
         return pairs
 
@@ -100,7 +108,8 @@ class Game:
                             excluded.add(letter)
                 candidate_regex += f"[^{''.join(excluded)}]" if len(excluded) > 0 else '.'
 
-        print('candidate regex is', candidate_regex)
+        if self.debug:
+            print('candidate regex is', candidate_regex)
         candidate_re = re.compile(candidate_regex)
         self._candidates = [wordle for wordle in self._candidates if candidate_re.match(wordle)]
 
@@ -110,9 +119,10 @@ class Game:
             for wordle in self._candidates:
                 if sum(1 if l in wordle else 0 for l in somewheres) == somewheres_count:
                     new_candidates.append(wordle)
-            removed = len(self._candidates) - len(new_candidates)
-            if removed == 0:
-                print('no wordles eliminated due to yellows')
-            else:
-                print(removed, 'of', len(self._candidates), 'wordles eliminated due to yellows')
+            if self.debug:
+                removed = len(self._candidates) - len(new_candidates)
+                if removed == 0:
+                    print('no wordles eliminated due to yellows')
+                else:
+                    print(removed, 'of', len(self._candidates), 'wordles eliminated due to yellows')
             self._candidates = new_candidates

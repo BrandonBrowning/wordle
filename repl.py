@@ -5,9 +5,6 @@ from typing import Callable, Tuple
 from const import WORDLE_LENGTH
 from game import Game
 
-PRINT_N_BEST_CANDIDATES = 8
-PRINT_N_WORST_CANDIDATES = 2
-
 class CommandResult(Enum):
     SUCCESS = 0
     HELP = 1
@@ -15,10 +12,22 @@ class CommandResult(Enum):
     NOOP = 3
     RESET = 4
 
+class GuessMode(Enum):
+    ELIMINATE = 0
+    FINISH = 1
+
+DEFAULT_MODE = GuessMode.ELIMINATE
+MINIMUM_COUNT_TO_FINISH = 25
+MINIMUM_GREENS_TO_FINISH = WORDLE_LENGTH - 2
+PRINT_N_BEST_CANDIDATES = 8
+PRINT_N_BEST_FINISH_CANDIDATES = 5
+PRINT_N_WORST_CANDIDATES = 2
+
 class Repl:
     def __init__(self, game_factory: Callable[[], Game]):
         self.game_factory = game_factory
         self.guess: str = None
+        self.mode = DEFAULT_MODE
         self._game: Game = None
 
     @property
@@ -41,16 +50,23 @@ commands:
     override the recommended guess with the given wordle
   candidates | wordles
     print out the best candidates
+  mode finish | mode eliminate
+    manually switch the mode to finish or eliminate (starts as eliminate)
   reset | restart
     begin a new game
   denied | invalid
     remove best guess as a valid word and try again
-  debug
+  break
     trigger a breakpoint
+  debug
+    toggle debug mode
+  help | ?
+    display this help text
   exit
 """.strip())
             elif result == CommandResult.RESET:
                 self._game = None
+                self.set_mode(DEFAULT_MODE)
                 print()
                 self.update_and_display_recommended_guess()
             elif result == CommandResult.EXIT:
@@ -85,19 +101,28 @@ commands:
                 return CommandResult.NOOP
         elif command in ['candidates', 'wordles'] and len(tokens) == 1:
             return self.repl_command_candidates()
+        elif command == 'mode' and len(tokens) == 2:
+            try:
+                self.mode = GuessMode[tokens[1].upper()]
+                return self.update_and_display_recommended_guess()
+            except KeyError:
+                pass
         elif command in ['reset', 'restart', 'retry', 'begin']:
             return CommandResult.RESET
         elif command in ['denied', 'invalid']:
             self.game.remove_candidate(self.guess)
             self.repl_command_candidates()
             return self.update_and_display_recommended_guess()
-        elif command == 'debug':
+        elif command == 'break':
             breakpoint()
+            return CommandResult.NOOP
+        elif command == 'debug':
+            self.game.debug = not self.game.debug
+            print('debug mode is now', 'on' if self.game.debug else 'off')
             return CommandResult.NOOP
         elif command == 'exit':
             return CommandResult.EXIT
-        else:
-            return CommandResult.HELP
+        return CommandResult.HELP
 
     def repl_command_candidates(self):
         best_candidates = self.game.best_candidates()
@@ -112,15 +137,38 @@ commands:
                 print('', pair[0], pair[1])
         return CommandResult.SUCCESS
 
+    def set_mode(self, mode):
+        if mode != self.mode:
+            self.mode = mode
+            print('mode set to', self.mode.name.lower())
+
     def update_and_display_recommended_guess(self):
-        self.guess = self.game.best_candidate()
-        if self.guess:
-            n = len(self.game.candidates)
-            if n == 1:
-                print(self.guess, 'is the only remaining wordle')
-            else:
-                print(self.guess, 'is the recommended guess of', n, 'wordles')
-            return CommandResult.SUCCESS
-        else:
+        n_candidates = len(self.game.candidates)
+        if n_candidates == 0:
             print('error: no wordles left; resetting')
             return CommandResult.RESET
+
+        if self.mode == DEFAULT_MODE:
+            if n_candidates <= MINIMUM_COUNT_TO_FINISH:
+                print('mode switched to finish since no more than', MINIMUM_COUNT_TO_FINISH, 'candidates')
+                self.mode = GuessMode.FINISH
+            elif sum(1 if l is not None else 0 for l in self.game.confirmed) >= MINIMUM_GREENS_TO_FINISH:
+                print('mode switched to finish since at least', MINIMUM_GREENS_TO_FINISH, 'greens')
+                self.mode = GuessMode.FINISH
+
+        if self.mode == GuessMode.ELIMINATE:
+            self.guess = self.game.best_candidate()
+        else:
+            best_candidates_to_finish = self.game.best_candidates_to_finish()
+            if n_candidates > 1:
+                best_slice = best_candidates_to_finish[:PRINT_N_BEST_FINISH_CANDIDATES]
+                print('best finish candidates:')
+                for pair in best_slice:
+                    print('', pair[0], pair[1])
+            self.guess = best_candidates_to_finish[0][0]
+
+        if n_candidates == 1:
+            print(self.guess, 'is the only remaining wordle')
+        else:
+            print(self.guess, 'is the recommended guess of', n_candidates, 'wordles')
+        return CommandResult.SUCCESS
